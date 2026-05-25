@@ -1,0 +1,18 @@
+[package]
+name = "hacc"
+version = "0.1.0"
+edition = "2024"
+description = "Library for parsing MediaTek data structures."
+license = "MIT"
+authors = ["Shomy <git@itssho.my>", "rva3 <rva333@protonmail.com>"]
+keywords = ["mediatek", "parsing", "no-std"]
+categories = ["parsing", "no-std", "no-std::no-alloc"]
+
+[dependencies]
+bilge = "0.3.0"
+thiserror = { version = "2.0.18", default-features = false }
+zerocopy = { version = "0.8.48", features = ["zerocopy-derive", "derive"] }
+
+[features]
+default = []
+alloc = []
