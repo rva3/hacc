@@ -4,11 +4,23 @@
 extern crate alloc;
 
 mod common;
+mod da;
 mod error;
 mod macros;
 mod preloader;
 pub mod traits;
 pub use common::*;
+pub use da::{
+    Da,
+    DaEntry,
+    DaEntryHeader,
+    DaEntryHeaderV3,
+    DaEntryHeaderV4,
+    DaError,
+    DaHeader,
+    DaHeaderVersion,
+    DaVersion,
+};
 pub use error::{Error, Result};
 pub use preloader::Preloader;
 pub use traits::TryRead;

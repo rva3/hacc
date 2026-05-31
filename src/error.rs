@@ -1,6 +1,7 @@
 use thiserror::Error as TError;
 
 pub use crate::common::gfh::GfhError;
+pub use crate::da::DaError;
 pub use crate::preloader::PreloaderError;
 pub use crate::{ImageError, SecCfgError};
 
@@ -19,6 +20,9 @@ pub enum Error {
 
     #[error("Preloader parsing error: {0:?}")]
     Preloader(#[from] PreloaderError),
+
+    #[error("DA parsing error: {0:?}")]
+    Da(#[from] DaError),
 
     #[error("Zerocopy error")]
     Zerocopy,
