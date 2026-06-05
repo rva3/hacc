@@ -204,7 +204,8 @@ impl ImageHeader {
     }
 
     pub const fn is_valid(&self) -> bool {
-        self.magic == Self::MAGIC && self.hdr_size == size_of::<Self>() as u32
+        self.magic == Self::MAGIC
+            && (!self.is_extended() || self.hdr_size == size_of::<Self>() as u32)
     }
 
     pub const fn is_extended(&self) -> bool {
@@ -236,7 +237,7 @@ impl ImageHeader {
     }
 
     pub const fn size(&self) -> u32 {
-        self.hdr_size
+        if self.is_extended() { self.hdr_size } else { size_of::<Self>() as u32 }
     }
 
     pub const fn hdr_ver(&self) -> u32 {
@@ -244,15 +245,23 @@ impl ImageHeader {
     }
 
     pub const fn image_group(&self) -> Result<ImageGroup> {
-        self.img_type.group()
+        if self.is_extended() {
+            return self.img_type.group();
+        };
+
+        Ok(ImageGroup::Ap)
     }
 
     pub fn image_id(&self) -> Result<ImageKind> {
-        self.img_type.id()
+        if self.is_extended() {
+            return self.img_type.id();
+        };
+
+        Ok(ImageKind::Ap(ImageAPKind::APBin))
     }
 
     pub const fn align_size(&self) -> u32 {
-        self.align_size
+        if self.is_extended() { self.align_size } else { 0 }
     }
 
     pub const fn is_last(&self) -> bool {
@@ -300,15 +309,23 @@ impl<'a> Image<'a> {
                 )
                 .ok()?;
 
+                if !header.is_valid() {
+                    return None;
+                }
+
                 let start = offset;
                 let data_start = start + header.size() as usize;
                 let data_end = data_start + header.data_size() as usize;
 
-                offset = (data_end + header.align_size() as usize - 1)
-                    & !(header.align_size() as usize - 1);
-
                 if data_end > self.data.len() {
                     return None;
+                }
+
+                offset = data_end;
+
+                if header.is_extended() {
+                    offset = (data_end + header.align_size() as usize - 1)
+                        & !(header.align_size() as usize - 1)
                 }
 
                 Some(ImagePartition {
@@ -353,6 +370,10 @@ impl<'a> Image<'a> {
         let last_part_start = last_part.as_ref().map(|p| p.range.start);
 
         let offset = last_part.as_ref().map_or(0, |last| {
+            if !last.header.is_extended() {
+                return last.range.end;
+            }
+
             let align = last.header.align_size() as usize;
             (last.range.end + align - 1) & !(align - 1)
         });
