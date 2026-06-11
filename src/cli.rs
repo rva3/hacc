@@ -45,7 +45,7 @@ fn main() -> Result<()> {
             let pl = Preloader::try_read(&data)?;
 
             let fi = pl.gfh().file_info();
-            println!("Base: {:#x}", fi.content_offset() + fi.jump_offset());
+            println!("Base: {:#x}", fi.load_addr() + fi.jump_offset());
 
             fs::write(out.join("pl.bin"), pl.content())?;
         }
