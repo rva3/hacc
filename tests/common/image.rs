@@ -60,13 +60,17 @@ fn image_add_partition() {
 
     assert!(image.has_partition("test_part"));
 
-    let partition = image.get_partition("test_part").expect("Failed to get added partition");
+    let mut partition = image.get_partition("test_part").expect("Failed to get added partition");
 
     assert!(partition.header.is_valid(), "Partition header magic or header size is invalid");
     assert!(partition.header.is_extended());
     assert_eq!(partition.header.data_size(), "test_content".len() as u64);
     assert_eq!(partition.header.name(), "test_part");
     assert_eq!(partition.header.image_id().unwrap(), ImageKind::Md(ImageMDKind::MdLte));
+
+    partition.header.set_addr(0xFFFF000050700000);
+
+    assert_eq!(partition.header.addr(), 0xFFFF000050700000);
 
     let mut image = Image::new(LK_IMAGE);
 
@@ -98,6 +102,12 @@ fn image_add_partition() {
         2,
         "Image should have 2 partitions after adding to legacy image",
     );
+
+    let mut partition = legacy.get_partition("test_part").unwrap();
+
+    partition.header.set_addr(0x4C400000);
+
+    assert_eq!(partition.header.addr(), 0x4C400000);
 }
 
 #[cfg(feature = "alloc")]

@@ -232,6 +232,13 @@ impl ImageHeader {
         }
     }
 
+    pub const fn set_addr(&mut self, addr: u64) {
+        self.addr = addr as u32;
+        if self.is_extended() {
+            self.addr_ext = (addr >> 32) as u32;
+        }
+    }
+
     pub const fn mode(&self) -> u32 {
         self.mode
     }
