@@ -282,7 +282,7 @@ impl ImageHeader {
 
 #[derive(Debug)]
 pub struct ImagePartition<'a> {
-    pub header: ImageHeader,
+    pub header: &'a ImageHeader,
     pub range: Range<usize>,
     pub content: &'a [u8],
 }
@@ -305,14 +305,14 @@ impl<'a> Image<'a> {
         }
     }
 
-    fn part_iter(&self) -> impl Iterator<Item = ImagePartition<'_>> {
+    fn part_iter(data: &[u8]) -> impl Iterator<Item = ImagePartition<'_>> {
         let mut offset = 0;
         core::iter::from_fn(move || {
-            if offset >= self.data.len() || self.data.len() < offset + size_of::<ImageHeader>() {
+            if offset >= data.len() || data.len() < offset + size_of::<ImageHeader>() {
                 None
             } else {
-                let header = ImageHeader::try_read_from_bytes(
-                    &self.data[offset..offset + size_of::<ImageHeader>()],
+                let header = ImageHeader::try_ref_from_bytes(
+                    &data[offset..offset + size_of::<ImageHeader>()],
                 )
                 .ok()?;
 
@@ -324,7 +324,7 @@ impl<'a> Image<'a> {
                 let data_start = start + header.size() as usize;
                 let data_end = data_start + header.data_size() as usize;
 
-                if data_end > self.data.len() {
+                if data_end > data.len() {
                     return None;
                 }
 
@@ -338,14 +338,20 @@ impl<'a> Image<'a> {
                 Some(ImagePartition {
                     header,
                     range: start..data_end,
-                    content: &self.data[data_start..data_end],
+                    content: &data[data_start..data_end],
                 })
             }
         })
     }
 
     pub fn partitions(&self) -> impl Iterator<Item = ImagePartition<'_>> {
-        self.part_iter().filter(|p| p.header.image_group().is_ok_and(|g| g != ImageGroup::Cert))
+        Self::part_iter(&self.data)
+            .filter(|p| p.header.image_group().is_ok_and(|g| g != ImageGroup::Cert))
+    }
+
+    pub fn partitions_from_slice(data: &'a [u8]) -> impl Iterator<Item = ImagePartition<'a>> {
+        Self::part_iter(data)
+            .filter(|p| p.header.image_group().is_ok_and(|g| g != ImageGroup::Cert))
     }
 
     pub fn has_partition(&self, name: &str) -> bool {
@@ -357,7 +363,7 @@ impl<'a> Image<'a> {
     }
 
     pub fn get_part_certs(&self, name: &str) -> impl Iterator<Item = ImagePartition<'_>> {
-        self.part_iter()
+        Self::part_iter(&self.data)
             .skip_while(move |p| p.header.name() != name)
             .skip(1)
             .take_while(|p| p.header.image_group().is_ok_and(|g| g == ImageGroup::Cert))
@@ -373,7 +379,7 @@ impl<'a> Image<'a> {
             return Err(Error::Image(ImageError::PartitionContentEmpty));
         }
 
-        let last_part = self.part_iter().last();
+        let last_part = Self::part_iter(&self.data).last();
         let last_part_start = last_part.as_ref().map(|p| p.range.start);
 
         let offset = last_part.as_ref().map_or(0, |last| {
@@ -412,10 +418,12 @@ impl<'a> Image<'a> {
 
     #[cfg(feature = "alloc")]
     pub fn remove_partition(&mut self, name: &str) -> Result<()> {
-        let prev_start =
-            self.part_iter().take_while(|p| p.header.name() != name).last().map(|p| p.range.start);
+        let prev_start = Self::part_iter(&self.data)
+            .take_while(|p| p.header.name() != name)
+            .last()
+            .map(|p| p.range.start);
 
-        let mut iter = self.part_iter().skip_while(|p| p.header.name() != name);
+        let mut iter = Self::part_iter(&self.data).skip_while(|p| p.header.name() != name);
         let part = iter.next().ok_or(Error::Image(ImageError::PartitionNotFound))?;
         let start = part.range.start;
         let mut end = part.range.end;
