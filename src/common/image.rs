@@ -370,7 +370,13 @@ impl<'a> Image<'a> {
     }
 
     #[cfg(feature = "alloc")]
-    pub fn add_partition(&mut self, name: &str, content: &[u8], img_type: ImageKind) -> Result<()> {
+    pub fn add_partition(
+        &mut self,
+        name: &str,
+        content: &[u8],
+        addr: u64,
+        img_type: ImageKind,
+    ) -> Result<()> {
         if name.is_empty() {
             return Err(Error::Image(ImageError::PartitionNameEmpty));
         } else if name.len() > 32 {
@@ -391,7 +397,8 @@ impl<'a> Image<'a> {
             (last.range.end + align - 1) & !(align - 1)
         });
 
-        let header = ImageHeader::new(name, content.len() as u64, img_type.into());
+        let mut header = ImageHeader::new(name, content.len() as u64, img_type.into());
+        header.set_addr(addr);
         let data = self.data.to_mut();
 
         if data.len() < offset {

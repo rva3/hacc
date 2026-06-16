@@ -56,45 +56,46 @@ fn image_from_invalid_bytes() {
 fn image_add_partition() {
     let mut image = Image::new(LK_IMAGE);
     let kind = ImageKind::Md(ImageMDKind::MdLte);
-    image.add_partition("test_part", b"test_content", kind).unwrap();
+    image.add_partition("test_part", b"test_content", 0xFFFF000050700000, kind).unwrap();
 
     assert!(image.has_partition("test_part"));
 
-    let mut partition = image.get_partition("test_part").expect("Failed to get added partition");
+    let partition = image.get_partition("test_part").expect("Failed to get added partition");
 
     assert!(partition.header.is_valid(), "Partition header magic or header size is invalid");
     assert!(partition.header.is_extended());
     assert_eq!(partition.header.data_size(), "test_content".len() as u64);
     assert_eq!(partition.header.name(), "test_part");
     assert_eq!(partition.header.image_id().unwrap(), ImageKind::Md(ImageMDKind::MdLte));
-
-    partition.header.set_addr(0xFFFF000050700000);
-
     assert_eq!(partition.header.addr(), 0xFFFF000050700000);
 
     let mut image = Image::new(LK_IMAGE);
 
-    let result = image.add_partition("", b"", ImageKind::Md(ImageMDKind::MdLte));
+    let result = image.add_partition("", b"", 0, ImageKind::Md(ImageMDKind::MdLte));
 
     assert!(result.is_err(), "Adding partition with empty name should fail");
     assert!(matches!(result, Err(Error::Image(ImageError::PartitionNameEmpty))));
 
-    let result = image.add_partition("test_part", b"", ImageKind::Md(ImageMDKind::MdLte));
+    let result = image.add_partition("test_part", b"", 0, ImageKind::Md(ImageMDKind::MdLte));
 
     assert!(result.is_err(), "Adding partition with empty content should fail");
     assert!(matches!(result, Err(Error::Image(ImageError::PartitionContentEmpty))));
 
     let name = "A".repeat(33);
 
-    let result = image.add_partition(&name, b"test_content", ImageKind::Md(ImageMDKind::MdLte));
+    let result = image.add_partition(&name, b"test_content", 0, ImageKind::Md(ImageMDKind::MdLte));
 
     assert!(result.is_err(), "Adding partition with name longer than 32 characters should fail");
     assert!(matches!(result, Err(Error::Image(ImageError::PartitionNameTooLong))));
 
     let mut legacy = Image::new(LEGACY_IMAGE);
 
-    let result =
-        legacy.add_partition("test_part", b"test_content", ImageKind::Md(ImageMDKind::MdLte));
+    let result = legacy.add_partition(
+        "test_part",
+        b"test_content",
+        0x4C400000,
+        ImageKind::Md(ImageMDKind::MdLte),
+    );
 
     assert!(result.is_ok());
     assert_eq!(
@@ -103,10 +104,7 @@ fn image_add_partition() {
         "Image should have 2 partitions after adding to legacy image",
     );
 
-    let mut partition = legacy.get_partition("test_part").unwrap();
-
-    partition.header.set_addr(0x4C400000);
-
+    let partition = legacy.get_partition("test_part").unwrap();
     assert_eq!(partition.header.addr(), 0x4C400000);
 }
 
